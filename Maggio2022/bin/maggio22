@@ -1,0 +1,75 @@
+import java.util.Random;
+import java.util.concurrent.Semaphore;
+
+public class maggio22 {
+
+    public static void main(String args[]) {
+
+        int numGiocatori = 3;
+        Semaphore turni[] = new Semaphore[numGiocatori];
+        Giocatore giocatori[] = new Giocatore[numGiocatori];
+
+        for (int i = 0; i < numGiocatori; i++) {
+            turni[i] = new Semaphore(0);
+        }
+        for (int i = 0; i < numGiocatori; i++) {
+            giocatori[i] = new Giocatore(turni);
+            giocatori[i].start();
+        }
+    }
+}
+
+class Giocatore extends Thread {
+
+    static int numGiocatori = 3;
+    int numCarte = 10;
+    int monetina;
+    Random rand = new Random();
+    static int ordine = 0; // l'ordine dei giocatori dev'essere condiviso così posso regolare i semafori
+    static Semaphore mutex = new Semaphore(1);
+    Semaphore turni[];
+    String nome;
+    Semaphore mySem, nextSem;
+
+    public Giocatore(Semaphore turni[]) {
+        this.turni = turni;
+        nome = getName();
+    }
+
+    public void run() {
+        try {
+            mutex.acquire(); // stabiliamo i turni
+            System.out.println("Sono " + nome + " e sono arrivato " + ordine);
+            mySem = turni[ordine];
+            nextSem = turni[(ordine + 1) % 3]; // regoliamo l'ordine dei giocatori
+            ordine++;
+            if (ordine == 2)
+                turni[0].release(); // significa che è finito un turno e quindi posso ricominciare
+            mutex.release();
+
+            while (numGiocatori > 1) {
+                mySem.acquire(); // tocca a me
+                if (numGiocatori == 1 && numCarte > 0) {
+                    System.out.println("Sono " + nome + " e ho vinto con " + numCarte);
+                } else {
+                    if (numCarte > 0) {
+                        monetina = rand.nextInt(2);
+                        numCarte -= monetina;
+                        System.out.println(
+                                "Sono " + nome + " e ho perso " + monetina + " carte" + " adesso ho " + numCarte
+                                        + " carte");
+                        if (numCarte <= 0) {
+                            System.out.println("Sono " + nome + " e sono stato eliminato");
+                            numGiocatori--;
+                        }
+                    }
+                }
+                nextSem.release(); // faccio giocare gli altri
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+}
