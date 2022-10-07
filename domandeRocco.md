@@ -1,7 +1,5 @@
 ## CLASSIC DI SISTEMI OPERATIVI
 
-
-
 ### GESTIONE PROCESSI
 
 - PCB (process control block), cos'è?  quali informazioni contiene?? devono essere residenti in memoria?? 
@@ -67,7 +65,7 @@
 
 - Cosa succede quando si verifica un page fault?
 
--  Descrivere l'algoritmo LRU col bit R; Che significa mettere 0 su tutta la colonna?
+- Descrivere l'algoritmo LRU col bit R; Che significa mettere 0 su tutta la colonna?
 
 - Bit R e M?
 
@@ -120,3 +118,499 @@
 - Master file table
 
 ### RAID E I/O
+
+- void speriamo sia veramente cosi
+
+### UN PO DI PSEDUCODICI...
+
+- Lettori e scrittori
+  
+  ```java
+  import java.util.concurrent.Semaphore;
+  
+  public class lettoriScrittori {
+  
+      public static void main(String args[]) {
+  
+          Semaphore lettScritt = new Semaphore(1);
+          Semaphore attesa = new Semaphore(1); // semaforo d'attesa
+          Lettore l[] = new Lettore[3];
+  
+          Scrittore s1 = new Scrittore(lettScritt, attesa);
+          Scrittore s2 = new Scrittore(lettScritt, attesa);
+  
+          for (int i = 0; i < l.length; i++) {
+              l[i] = new Lettore(lettScritt, attesa);
+              l[i].start();
+          }
+          s1.start();
+          s2.start();
+      }
+  }
+  
+  class Lettore extends Thread {
+  
+      Semaphore lettscritt;
+      Semaphore attesa;
+      static int nLettori;
+      static Semaphore mutex = new Semaphore(1);
+      String nome;
+      int id;
+      static int ID;
+  
+      public Lettore(Semaphore lettscritt, Semaphore attesa) {
+          this.lettscritt = lettscritt;
+          this.attesa = attesa;
+          id = ID;
+          ID++;
+          nome = "Lettore" + id;
+      }
+  
+      public void run() {
+          try {
+              attesa.acquire();
+              attesa.release(); // liberiamo lo scrittore così
+              mutex.acquire();
+              for (int i = 0; i < 5; i++) {
+                  System.out.println("Sono " + nome + " e sto avviando la lettura n " + (i + 1));
+                  nLettori++;
+                  if (nLettori == 1) {
+                      lettscritt.acquire();
+                  }
+                  mutex.release(); // possiamo far entrare altri lettori intanto;
+                  System.out.println("Sono " + nome + " e sto effettuando la lettura n " + (i + 1));
+                  mutex.acquire();
+                  nLettori--; // ho finito di leggere
+                  if (nLettori == 0) {
+                      lettscritt.release(); // se sono finiti i lettori libero lo scrittore
+                  }
+                  mutex.release();
+              }
+          } catch (Exception e) {
+              e.printStackTrace();
+          }
+      }
+  
+  }
+  
+  class Scrittore extends Thread {
+  
+      Semaphore lettscritt;
+      Semaphore attesa;
+      String nome;
+      int id;
+      static int ID;
+  
+      public Scrittore(Semaphore lettscritt, Semaphore attesa) {
+          this.lettscritt = lettscritt;
+          this.attesa = attesa;
+          id = ID;
+          ID++;
+          nome = "Scrittore " + id;
+      }
+  
+      public void run() {
+          try {
+              for (int i = 0; i < 5; i++) {
+                  attesa.acquire(); // blocco i lettori
+                  System.out.println("Sono " + nome + " e sto avviando la scrittura n " + (i + 1));
+                  lettscritt.acquire();
+                  System.out.println("Sono " + nome + " e sto effettuando la scrittura n " + (i + 1));
+                  lettscritt.release();
+                  attesa.release(); // finito
+              }
+          } catch (Exception e) {
+              e.printStackTrace();
+          }
+      }
+  
+  }
+  
+  ```
+
+- Semaforo e monitor rocco
+  
+  - semaforo
+  
+  ```java
+  public class Semaphore {
+    private int value, sospesi; // andiamo a segnare il valore max del semaforo e quanti sono in attesa
+                              // se value è 1, semaforo binario classic!
+  
+  public Semaphore(int v) {
+      value = v;
+      sospesi = 0; // inizialmente non ci sono sospesi
+  }
+  
+  public synchronized void down() {
+  
+      if (value == 0) {
+          sospesi++;
+          try {
+              wait();
+          } catch (Exception e) {
+              e.printStackTrace();
+          }
+          sospesi--; // una volta usciti dal wait
+      } else {
+          value--; // abbasso ed entro nell'area critica
+      }
+  }
+  
+  public synchronized void up() {
+      if (sospesi > 0) {
+          notify(); // se c'è qualcuno in attesa lo svegliamo
+      } else {
+          value++; // altrimenti alzo il valore del semaforo e può accedere qualcun altro
+      }
+   }
+  }
+  ```
+  
+  - monitor
+  
+  ```java
+  public class esempioMonitor {
+  
+      static final int N = 100;
+      static producer p = new producer();
+      static consumer c = new consumer();
+      static our_monitor mon = new our_monitor();
+  
+      public static void main(String args[]) {
+          p.start();
+          c.start();
+      }
+  
+      static class producer extends Thread {
+          public void run() {
+              int item;
+              while (true) {
+                  item = produce_item();
+                  mon.insert(item);
+              }
+          }
+  
+          private int produce_item() {
+              return 1;
+          }
+      }
+  
+      static class consumer extends Thread {
+          public void run() {
+              int item;
+              while (true) {
+                  item = mon.remove();
+                  consume_item(item);
+              }
+          }
+  
+          private void consume_item(int tem) {
+  
+          }
+      }
+  
+      static class our_monitor {
+  
+          private int buffer[] = new int[N]; // usiamo un buffer come variabile di condizione condivisa
+          private int count = 0, lo = 0, hi = 0;
+  
+          public synchronized void insert(int val) {
+              if (count == N)
+                  go_to_sleep();
+              buffer[hi] = val;
+              hi = (hi + 1) % N;
+              count++;
+              if (count == 1)
+                  notify();
+          }
+  
+          public synchronized int remove() {
+              int val;
+              if (count == 0)
+                  go_to_sleep();
+              val = buffer[lo];
+              lo = (lo + 1) % N;
+              count--;
+              if (count == N - 1)
+                  notify(); // si è liberato un posto
+              return val;
+          }
+  
+          private void go_to_sleep() {
+              try {
+                  wait();
+              } catch (Exception e) {
+                  e.printStackTrace();
+              }
+          }
+      }
+  
+  }
+  ```
+
+- Vabe ci metto qualche esempio system call x il meme spero ne chied
+  
+  ```c
+  ###Padre e figlio Fork
+  
+  #include <stdio.h>
+  #include <sys/types.h>
+  #include <sys/wait.h>
+  
+  void main()
+  {
+  
+      pid_t pid;
+      int status;
+  
+      pid = fork(); // il primo figlio è generato
+  
+      if (!pid)
+      { // diverso da pid, codice figlio.
+  
+          printf("Sono il primo figlio: PID = %d PPID = %d \n", getpid(), getppid());
+          exit(0); // il processo si interrompe
+      }
+  
+      else
+      { // codice del padre
+  
+          pid = fork(); // genero il secondo figlio
+  
+          if (!pid)
+          { // codice del secondo figlio
+              printf("Sono il secondo figlio: PID = %d PPID = %d \n", getpid(), getppid());
+              exit(0);
+          }
+  
+          else
+          { // codice del padre nuovamente
+  
+              pid = wait(&status); // attende che termini il primo figlio
+              printf("Primo figlio terminato: PID = %d STATO = %d \n", pid, status);
+  
+              pid = wait(&status); // attende che termini il secondo figlio
+              printf("Second figlio terminato: PID = %d STATO = %d \n", pid, status);
+              printf("Programma terminato");
+          }
+      }
+  }
+  ```
+  
+  - shell
+    
+    ```c
+    
+    
+    #include <stdio.h>
+    #include <sys/types.h>
+    #include <sys/wait.h>
+    
+    void main()
+    {
+    
+        pid_t pid, procid;
+        int status, k;
+        size_t n;
+    
+        char buffer[80], prompt[30]; // abbiamo un buffer di caratteri
+    
+        sprintf(prompt, "myprompt:>"); // memorizziamo il risultato della stampa all’interno dell’array di caratteri
+        write(1, prompt, 10);          // scriviamo sullo stoud myprompt:>
+        bzero(buffer, 80);             // andiamo ad azzerare 80 bytes del buffer
+        while (caratteri.letti != 0)   // leggo finchè la stringa non è vuota
+        {
+            // processiamo la linea di comando
+            k = strlen(buffer);
+            buffer[k - 1] = buffer[k] // rimuoviamo /n finale
+                if (buffer == "esci") exit(0);
+            printf("Attivazione processo figlio %s \n", buffer); // stampiamo il contenuto di buffer
+            if ((pid = fork()) == 0)
+            {
+                // siamo nel nuovo processo
+                attivazione processo con exec = > exec(buffer); // ci saranno poi eventuali altri argomenti
+                if (problemi.di.attivazione)
+                    exit(1);
+            }
+            procid = wait(&status);
+            if (status != 0)
+                write(2, "commmand not found\n", 14); // comando non trovato
+            bzero(buffer, 80);                        // riazzeriamo
+            write(1, prompt, 10);
+        }
+        exit(0); // finito
+    }
+    ```
+  
+  - pipeline
+    
+    ```c
+    
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <sys/types.h>
+    
+    void main()
+    { // esempio che sfrutta il reindirizzamento degli standard input ed output
+      // per mettere in comunicazione due processi padre-figlio
+      // senza dovere usare direttamente la pipe, grazie appunto all reindirizzamento
+    
+        int pid, status;
+        int fd_pipe[2];
+        bool pipeline = true;
+    
+        if ((pid = fork()) == 0)
+        { // processo figlio
+            if (pipeline)
+            {
+                pipe(fd_pipe); // creiamo la pipe e ora possiamo fare la fork così sarà condivisa
+                if (fork() == 0)
+                {                    // figlio, produttore
+                    close(1);        // chiudiamo lo stdout del produttore
+                    dup(fd_pipe[1]); // associamo alla pipe di scrittura lo stdout del produttore
+                    close(fd_pipe[0]);
+                    close(fd_pipe[1]);
+                    exec(cmd1, ...); // quando il produttore andrà a scrivere sullo stdout, in realtà
+                                     // andrà a farlo sulla pipe
+                }
+                else
+                {                    // processo padre, consumatore
+                    close(0);        // chiudiamo lo stdin del consumatore
+                    dup(fd_pipe[0]); // associamo alla pipe di lettura lo stdin del consumatore
+                    close(fd_pipe[1]);
+                    close(fd_pipe[0]);
+                    exec(cmd2, ...); // quando il consumatore andrà a leggere sullo stdin, in reltà
+                                     // andrà a farlo sulla pipe
+                }
+            }
+        }
+    }
+    ```
+
+- padre figlio pipe
+  
+  ```c
+  
+  #include <stdio.h>
+  #include <stdlib.h>
+  
+  void main()
+  { // scriviamo e leggiamo 10 volte un intero nella pipe facendo
+    // comunicare due processi padre-figlio
+  
+      int pid, j, c;
+      int piped[2]; // l'array di file descriptor che passiamo alla pipe
+  
+      // apriamo la pipe creando due fd, uno per la lettura e l'altro per la scrittura e
+      // li memorizziamo nell'array piped
+  
+      if (pipe(piped) < 0)
+          exit(1); // pipe fallito
+  
+      if ((pid = fork()) < 0)
+          exit(2);
+      else if (pid == 0) // figlio, che ha una copia di piped[]
+      {
+          close(piped[1]); // chiudiamo per sicurezza il fd per la scrittura
+          for (j = 1; j <= ; j++)
+          {
+              read(piped[0], &c, sizeof(int)); // leggiamo da piped[0] ed inseriamo in c
+              printf("Figlio: ho letto dalla pipe il numero %d\n", c);
+          }
+          exit(0);
+      }
+      else
+      {                   // padre
+          close(piped[0]) // chiudiamo per sicurezza il fd per la lettura
+              for (j = 1; j <= 10; j++)
+          {
+              write(piped[1], &j, sizeof(int))
+                  printf("Padre: ho scritto nella pipe il numero %d\n", j);
+              sleep(1);
+          }
+          exit(0); // una volta finito chiudo il processo
+      }
+  }
+  ```
+
+- peterson
+  
+  ```c
+  
+  #define FALSE 0
+  #define TRUE 1
+  #define N 2
+  
+  // implementazione della soluzione di Peterson di M.E, che prevede due metodi
+  // enter_region(int i) e leave_region(int i) per regolamentare l'accesso alla zona critica
+  
+  int turn;
+  int interested[N];
+  
+  void enter_region(int process) // passiamo il pid, 0 o 1
+  {
+  
+      int other;
+      other = 1 - process;        // il numero dell'altro processo
+      interested[process] = true; // mostriamo di essere interessati
+      turn = process;             // ci settiamo il turno
+      while (turn == process && interested[other] == true)
+      {
+  
+      } // attesa attiva, giro a vuoto nel while finchè l'altro non ha finito
+  }
+  
+  void leave_region(int process)
+  {
+  
+      interested[process] = false; // lasciamo la regione critica e quindi non siamo più interessati
+  }
+  
+  
+  ```
+  
+  - prod e cons
+    
+    ```c
+    
+    #define N 100
+    
+    typedef int semaphore; // i semafori sono un tipo specialle di intero
+    
+    semaphore mutex = 1;
+    semaphore empty = N;
+    semaphore full = 0;
+    
+    void producer()
+    {
+    
+        int item;
+    
+        while (true)
+        {
+            item = produce_item();
+            down(&empty); // diminuiamo di uno empty
+            down(&mutex);
+            insert_item(item);
+            up(&mutex);
+            up(&full) // alziamo full perchè abbiamo inserito un nuovo elemento
+        }
+    }
+    
+    void consumer()
+    {
+    
+        int item;
+    
+        while (true)
+        {
+            down(&full); // diminuiamo di uno
+            down(&mutex);
+            item = remove_item();
+            up(&mutex);
+            up(&empty); // rimosso uno
+            consume_item(item);
+        }
+    }
+    ```
