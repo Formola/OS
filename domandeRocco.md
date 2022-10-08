@@ -121,7 +121,7 @@
 
 - void speriamo sia veramente cosi
 
-### UN PO DI PSEDUCODICI...
+### UN PO DI CODICI... DA IMPARARE A MEMORIA??????
 
 - Lettori e scrittori
   
@@ -133,7 +133,7 @@
       public static void main(String args[]) {
   
           Semaphore lettScritt = new Semaphore(1);
-          Semaphore attesa = new Semaphore(1); // semaforo d'attesa
+          Semaphore attesa = new Semaphore(1); // semaforo d'attesa per garantire la sincronizz.
           Lettore l[] = new Lettore[3];
   
           Scrittore s1 = new Scrittore(lettScritt, attesa);
@@ -225,8 +225,181 @@
       }
   
   }
-  
   ```
+  
+  - Produttori e consumatori
+    
+    ```java
+    import java.util.concurrent.Semaphore;
+    
+    public class produttoriConsumatori {
+    
+        public static void main(String args[]) {
+    
+            int nConsumatori = 5;
+            int nProduttori = 2;
+            Semaphore mutex = new Semaphore(1);
+            Coda coda = new Coda(10); // dimensione massima coda;
+    
+            Consumatore c[] = new Consumatore[nConsumatori];
+            Produttore p[] = new Produttore[nProduttori];
+    
+            for (int i = 0; i < nConsumatori; i++) {
+                c[i] = new Consumatore(mutex, coda);
+                c[i].start();
+            }
+    
+            for (int i = 0; i < nProduttori; i++) {
+                p[i] = new Produttore(mutex, coda);
+                p[i].start();
+            }
+    
+        }
+    }
+    
+    class Coda {
+    
+        Semaphore full;
+        Semaphore empty;
+    
+        public Coda(int n) {
+            full = new Semaphore(0);
+            empty = new Semaphore(n);
+        }
+    
+        public void inserisci(Object o) {
+    
+        }
+    
+        public Object rimuovi() {
+            return new Object();
+        }
+    }
+    
+    class Produttore extends Thread {
+    
+        Semaphore mutex;
+        Coda coda;
+        String nome;
+        int id;
+        static int ID;
+    
+        public Produttore(Semaphore mutex, Coda coda) {
+            this.mutex = mutex;
+            this.coda = coda;
+            id = ID;
+            ID++;
+            nome = "Produttore" + (id + 1);
+        }
+    
+        public void run() {
+            try {
+                while (true) {
+                    coda.empty.acquire();
+                    System.out.println("Sono " + nome + " e sto provando a produrre un oggetto");
+                    mutex.acquire(); // accediamo alla struttura dati condivisa in mutex
+                    Object o = new Object();
+                    coda.inserisci(o);
+                    System.out.println("Sono " + nome + " ed ho prodotto un oggetto");
+                    mutex.release();
+                    coda.full.release(); // coda riempipta
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    
+    }
+    
+    class Consumatore extends Thread {
+    
+        Semaphore mutex;
+        Coda coda;
+        String nome;
+        int id;
+        static int ID;
+    
+        public Consumatore(Semaphore mutex, Coda coda) {
+            this.mutex = mutex;
+            this.coda = coda;
+            id = ID;
+            ID++;
+            nome = "Consumatore" + (id + 1);
+        }
+    
+        public void run() {
+            try {
+                while (true) {
+                    coda.full.acquire();
+                    System.out.println("Sono " + nome + " e sto provando a consumare un oggetto");
+                    mutex.acquire();
+                    coda.rimuovi();
+                    System.out.println("Sono " + nome + " ed ho rimosso un oggetto");
+                    mutex.release();
+                    coda.empty.release();
+                }
+    
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    
+    }
+    ```
+  
+  - FILOSOFI A CENA !!!
+    
+    ```c
+    #define N 5
+    #define LEFT (i + N - 1) % N
+    #define RIGHT (i + 1) % N
+    #define THIKING 0
+    #define HUNGRY 1
+    #define EATING 2
+    
+    typedef int semaphore;
+    int state[N];        // array per tenere traccia dello stato dei filosofi
+    semaphore mutex = 1; // mutex per le zone critiche
+    semaphore s[N];      // semaforo di ciascun filosofo
+    
+    void philosopher(int i)
+    {
+        while (true)
+        {
+            think();
+            take_forks(i);
+            eat(); // yum-yum spaghetti :D
+            put_forks(i);
+        }
+    }
+    
+    void take_forks(int i)
+    {
+        down(&mutex);
+        state[i] = HUNGRY; // voglio mangiare quindi mi setto ad affamato
+        test(i);           // prova ad acquisire le forchette
+        up(&mutex);
+        down(&s[i]); // ho finito di mangiare
+    }
+    
+    void put_forks()
+    {
+        down(&mutex);
+        state[i] = THIKING; // ho finito di mangiare
+        test(LEFT);
+        test(RIGHT); // verifichiamo se i filosofi accanto possano mangiare
+        up(&mutex);  // può mangiare il prossimo filosofo
+    }
+    
+    void test(int i)
+    {
+        if (state[i] == HUNGRY && state[LEFT] != EATING && state[RIGHT] != EATING)
+        {
+            state[i] = EATING; // se sono affamato e chi mi è affianco non sta mangiando posso mangiare io
+            up(&s[i]);         // inizio a mangiare
+        }
+    }
+    ```
 
 - Semaforo e monitor rocco
   
@@ -401,8 +574,6 @@
   - shell
     
     ```c
-    
-    
     #include <stdio.h>
     #include <sys/types.h>
     #include <sys/wait.h>
@@ -442,56 +613,54 @@
         exit(0); // finito
     }
     ```
+
+- pipeline
   
-  - pipeline
-    
-    ```c
-    
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <sys/types.h>
-    
-    void main()
-    { // esempio che sfrutta il reindirizzamento degli standard input ed output
-      // per mettere in comunicazione due processi padre-figlio
-      // senza dovere usare direttamente la pipe, grazie appunto all reindirizzamento
-    
-        int pid, status;
-        int fd_pipe[2];
-        bool pipeline = true;
-    
-        if ((pid = fork()) == 0)
-        { // processo figlio
-            if (pipeline)
-            {
-                pipe(fd_pipe); // creiamo la pipe e ora possiamo fare la fork così sarà condivisa
-                if (fork() == 0)
-                {                    // figlio, produttore
-                    close(1);        // chiudiamo lo stdout del produttore
-                    dup(fd_pipe[1]); // associamo alla pipe di scrittura lo stdout del produttore
-                    close(fd_pipe[0]);
-                    close(fd_pipe[1]);
-                    exec(cmd1, ...); // quando il produttore andrà a scrivere sullo stdout, in realtà
-                                     // andrà a farlo sulla pipe
-                }
-                else
-                {                    // processo padre, consumatore
-                    close(0);        // chiudiamo lo stdin del consumatore
-                    dup(fd_pipe[0]); // associamo alla pipe di lettura lo stdin del consumatore
-                    close(fd_pipe[1]);
-                    close(fd_pipe[0]);
-                    exec(cmd2, ...); // quando il consumatore andrà a leggere sullo stdin, in reltà
-                                     // andrà a farlo sulla pipe
-                }
-            }
-        }
-    }
-    ```
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <sys/types.h>
+  
+  void main()
+  { // esempio che sfrutta il reindirizzamento degli standard input ed output
+    // per mettere in comunicazione due processi padre-figlio
+    // senza dovere usare direttamente la pipe, grazie appunto all reindirizzamento
+  
+      int pid, status;
+      int fd_pipe[2];
+      bool pipeline = true;
+  
+      if ((pid = fork()) == 0)
+      { // processo figlio
+          if (pipeline)
+          {
+              pipe(fd_pipe); // creiamo la pipe e ora possiamo fare la fork così sarà condivisa
+              if (fork() == 0)
+              {                    // figlio, produttore
+                  close(1);        // chiudiamo lo stdout del produttore
+                  dup(fd_pipe[1]); // associamo alla pipe di scrittura lo stdout del produttore
+                  close(fd_pipe[0]);
+                  close(fd_pipe[1]);
+                  exec(cmd1, ...); // quando il produttore andrà a scrivere sullo stdout, in realtà
+                                   // andrà a farlo sulla pipe
+              }
+              else
+              {                    // processo padre, consumatore
+                  close(0);        // chiudiamo lo stdin del consumatore
+                  dup(fd_pipe[0]); // associamo alla pipe di lettura lo stdin del consumatore
+                  close(fd_pipe[1]);
+                  close(fd_pipe[0]);
+                  exec(cmd2, ...); // quando il consumatore andrà a leggere sullo stdin, in reltà
+                                   // andrà a farlo sulla pipe
+              }
+          }
+      }
+  }
+  ```
 
 - padre figlio pipe
   
   ```c
-  
   #include <stdio.h>
   #include <stdlib.h>
   
@@ -537,7 +706,6 @@
 - peterson
   
   ```c
-  
   #define FALSE 0
   #define TRUE 1
   #define N 2
@@ -566,51 +734,4 @@
   
       interested[process] = false; // lasciamo la regione critica e quindi non siamo più interessati
   }
-  
-  
   ```
-  
-  - prod e cons
-    
-    ```c
-    
-    #define N 100
-    
-    typedef int semaphore; // i semafori sono un tipo specialle di intero
-    
-    semaphore mutex = 1;
-    semaphore empty = N;
-    semaphore full = 0;
-    
-    void producer()
-    {
-    
-        int item;
-    
-        while (true)
-        {
-            item = produce_item();
-            down(&empty); // diminuiamo di uno empty
-            down(&mutex);
-            insert_item(item);
-            up(&mutex);
-            up(&full) // alziamo full perchè abbiamo inserito un nuovo elemento
-        }
-    }
-    
-    void consumer()
-    {
-    
-        int item;
-    
-        while (true)
-        {
-            down(&full); // diminuiamo di uno
-            down(&mutex);
-            item = remove_item();
-            up(&mutex);
-            up(&empty); // rimosso uno
-            consume_item(item);
-        }
-    }
-    ```
