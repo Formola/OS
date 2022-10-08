@@ -11,6 +11,7 @@ public class App {
         Semaphore canRead = new Semaphore(0);
         Scrittore scrittori[] = new Scrittore[k];
         Lettore lettori[] = new Lettore[m];
+        
         for ( int i = 0; i < k; i++){
             scrittori[i] = new Scrittore(ram, canWrite, canRead);
             scrittori[i].setName("[Scrittore"+i+"]");
