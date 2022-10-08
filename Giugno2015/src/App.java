@@ -1,91 +1,65 @@
-import java.util.*;
 import java.util.concurrent.Semaphore;
 
 public class App {
-    public static void main(String[] args) throws Exception {
 
+    public static void main(String args[]) {
 
-        Fattoria fattoria = new Fattoria();
-        final int n = 4;
-        Semaphore[] turni = new Semaphore[n];
-        for ( int i = 0; i<n; i++){
-            turni[i] = new Semaphore(0);
+        Farm farm = new Farm();
+        int kOperazioni = 3;
+        int N = 5;
+        Processo p[] = new Processo[N];
+        Semaphore token = new Semaphore(1);
+
+        for (int i = 0; i < N; i++) {
+            p[i] = new Processo(token, kOperazioni, farm);
+            p[i].start();
         }
-
-
-
-        P[] prods = new P[n];
-        for ( int i = 0; i < n; i++){
-            prods[i] = new P(fattoria,turni);
-            prods[i].setName("[P"+i+"]");
-            prods[i].start();
-        }
-
     }
 }
 
-class P extends Thread {
+class Farm {
 
-    Semaphore[] turni;
-    Fattoria fattoria;
+    public void work(String nome, int i) {
+        System.out.println("Sono " + nome + " ed effettuo l'operazione n " + (i + 1) + " nella Farm");
+    }
+}
 
-    final int n = 4;
-    static int k ;
+class Processo extends Thread {
+
+    Farm farm;
+    static Semaphore mutex = new Semaphore(1);
+    Semaphore semToken;
+    boolean token = false;
     int id;
-    static int ID = 0;
+    static int ID;
+    String nome;
+    int kOperazioni;
 
-    static Semaphore mutexToken = new Semaphore(0);
-    static int id_owner_token = -1;
-    LinkedList<Integer> mytoken;
-
-    public P(Fattoria fattoria,Semaphore[] turni){
-        this.id = ID;
+    public Processo(Semaphore semToken, int kOperazioni, Farm farm) {
+        this.semToken = semToken;
+        this.kOperazioni = kOperazioni;
+        this.farm = farm;
+        id = ID;
         ID++;
-        k = 2;
-        this.turni = turni;
-        this.fattoria = fattoria;
-        mytoken = new LinkedList<>();
-
-        if ( ID == 4){
-            mutexToken.release();
-            turni[0].release();
-        }
+        nome = "P" + id;
     }
 
-    public void run(){
+    public void run() {
+        try {
+            for (int i = 0; i < kOperazioni; i++) {
+                semToken.acquire();
+                System.out.println("Sono " + nome + " ed acquisisco il token");
+                token = true;
+                System.out.println("Sono " + nome + " ed ho depositato il token");
+                token = false;
+                semToken.release();
 
-        try{
-
-            for ( int i =0 ; i < k ; i++){
-                mutexToken.acquire();
-                id_owner_token = this.id;
-                mutexToken.release();
-            
-                turni[id].acquire();
-                mytoken.add(1);
-                if (mytoken.size()==1){
-                    System.out.println(getName() + " ha acquisito il token");
-                    mytoken.removeLast();
-                    System.out.println(getName() + " passa il token al processo successivo");
-                    System.out.println(getName() + "accede alla farm");
-                    fattoria.accedi();
-                    turni[(id+1)%n].release();
-                } 
+                mutex.acquire();
+                farm.work(nome, i);
+                mutex.release();
             }
-
-
-            
-        } catch( Exception e){
-
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-    }
-}
-
-class Fattoria {
-    LinkedList<Integer> farm = new LinkedList<>();
-
-    public void accedi(){
-        farm.add(1);
     }
 }
