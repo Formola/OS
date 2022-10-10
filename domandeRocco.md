@@ -1,15 +1,5 @@
 ## CLASSIC DI SISTEMI OPERATIVI
 
-### GESTIONE PROCESSI
-
-- PCB (process control block), cos'è?  quali informazioni contiene?? devono essere residenti in memoria?? 
-
-- Stati di un processo (new, ready, running, ecc...) 
-
-- nascita di un processo, parla della shell e del processo init
-
-- tabella dei processi? quali parametri trovo??
-
 ### SYSTEM CALL
 
 - System call, esempio di esecuzione (schema con la trap) 
@@ -28,18 +18,28 @@
 
 - system call read? cosa a il S.O quando arriva una read?
 
-- maschera dei segnali??
+- maschera dei segnali?? ( array di bit che rappresentano i segnali bloccati per un processo , supponiamo bit = 1 segnale blokkato...sidai ha senso)
 
 - system call creat
 
 - System call write, scrivere (interfaccia, che tipo sono i parametri, cosa fa etc)
   Dopo la scrittura cosa succede (inode, tabelle)
 
+### GESTIONE PROCESSI
+
+- PCB (process control block), cos'è? quali informazioni contiene?? devono essere residenti in memoria?? ( solo quelle x skeduling in memoria fisse...altre in user area)
+
+- Stati di un processo (new, ready, running, ecc...)
+
+- nascita di un processo, parla della shell e del processo init
+
+- tabella dei processi? quali parametri trovo??
+
+- quali parametri trovo nel pcb utili x schedulazione?? ( pid, ppid, userid, MASKERA..)
+
 ### SCHEDULING
 
 - Algoritmo di schedulazione Linux
-
-- quali parametri trovo nel pcb utili x schedulazione??
 
 - algoritmo di schedulazione più usato?? come si calcola la priorita di tale algoritmo??
 
