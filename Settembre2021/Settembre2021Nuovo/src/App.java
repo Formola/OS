@@ -51,7 +51,7 @@ class Robot extends Thread {
 
                 mutex.acquire();
                 myObject.add(coda.item.removeLast());
-                index_estratto++;
+                index_estratto++;   
                 
                 if ( index_estratto%2 == 0 ){
                     depB.mutexB.acquire();
