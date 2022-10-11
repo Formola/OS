@@ -53,24 +53,23 @@ class Impiegato extends Thread {
     public void run() {
 
         try {
-            while (faldone.pratiche.size() >= 0) {
+            while (faldone.pratiche.size() > 0) {
 
                 mutexPratiche.acquire();
                 faldone.pratiche.removeLast();
                 myPratiche.add(1);
                 System.out.println(getName() + " ha lavorato ad una pratica, ne rimangono " + faldone.pratiche.size());
-                
+
+
                 emptyCapo.acquire();
                 cap.pratiche_da_firmare.add(1);
                 mutexCapo.release();
                 myPratiche.removeLast();
                 System.out.println(getName() + " ripone una pratica sulla scrivania del capufficio");
 
-                if ( faldone.pratiche.size() == 0){
-                    mutexPratiche.release();
-                    break;
-                }
                 mutexPratiche.release();
+
+            
             }
         } catch (Exception e) {
 
@@ -97,23 +96,15 @@ class Capufficio extends Thread {
     public void run() {
         try {
 
-            while (pratiche_da_firmare.size() >= 0) {
+            while (pratiche_da_firmare.size() > 0 || faldone.pratiche.size()>0) {
                 mutexCapo.acquire();
 
-                if (pratiche_da_firmare.size() > 0) {
                     System.out.println(
                             getName() + " ci sono " + pratiche_da_firmare.size() + " da firmare sulla scrivania");
                     pratiche_da_firmare.removeLast();
                     System.out.println(getName() + " firma una pratica,ne rimangono " + pratiche_da_firmare.size());
                     emptyCapo.release();
-                } else {
-                    mutexCapo.release();
-                    emptyCapo.release();
 
-                }
-                if ( faldone.pratiche.size() == 0){
-                    break;
-                }
                 
 
             }

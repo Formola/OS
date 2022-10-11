@@ -86,7 +86,7 @@ class Caporeparto extends Thread {
 
     public void run(){
 
-        while(ordine<Worker.n){
+        
             
 
             try{
@@ -99,7 +99,7 @@ class Caporeparto extends Thread {
             } catch(Exception e){
 
             }
-        }
+        
 
     }
 }
